@@ -1,62 +1,3 @@
-// import React, { Component } from 'react';
-// // import { roomListColumn, roomListTableData } from './HotelListTableData';
-// import {hotelListColumn, hotelListTableData} from './HotelListTableData';
-// import DataTable from '../../../../../Common/DataTable/DataTable';
-// import DataTableHeader from '../../../../../Common/DataTableHeader/DataTableHeader';
-// import DataTableFooter from '../../../../../Common/DataTableFooter/DataTableFooter';
-
-// class HotelListTable extends Component {
-//   constructor(props) {
-//     super(props);
-//     this.state = {
-//       dataT: hotelListTableData.map(data => ({
-//         id: data.id,
-//         roomType: data.roomType,
-//         roomPrice: data.roomPrice,
-//         bedCharge: data.bedCharge,
-//         capacity: data.capacity,
-//         roomSize: data.roomSize,
-//         bedNo: data.bedNo,
-//         bedType: data.bedType,
-//         actions: (
-//           <>
-//             <button type="button" className="btn" data-bs-toggle="offcanvas" data-bs-target="#edit-room" aria-controls="edit-room">
-//               <i className="bi bi-pencil-square"></i>
-//             </button>
-//             <button type="button" className="btn deleterow" onClick={() => this.handleDelete(data.id)}>
-//               <i className="bi bi-trash text-danger"></i>
-//             </button>
-//           </>
-//         ),
-//       })),
-//     };
-//   }
-
-//   handleDelete = (id) => {
-//     this.setState(prevState => ({
-//       dataT: prevState.dataT.filter(data => data.id !== id),
-//     }));
-//   };
-
-//   render() {
-//     const { dataT } = this.state;
-
-//     return (
-//       <>
-//         <DataTableHeader />
-//         <DataTable columns={hotelListColumn} data={dataT} />
-//         <DataTableFooter dataT={dataT} />
-//       </>
-//     );
-//   }
-// }
-
-// export default HotelListTable;
-
-
-
-
-
 // HotelListTable.jsx
 import React, { useState } from 'react';
 import { useGetHotelsQuery, useDeleteHotelMutation } from '../../../../../services/hotelAPI';
@@ -156,20 +97,47 @@ const HotelListTable = () => {
       Header: 'Location',
       accessor: 'address.city',
       sortable: true,
-      Cell: ({ row }) => (
-        <span>{`${row.original.address.city}, ${row.original.address.country}`}</span>
-      )
+      Cell: ({ row }) => {
+        const address = row.original.address || {};
+        return <span>{`${address.city || ''}, ${address.country || ''}`}</span>;
+      }
     },
     {
       Header: 'Contact',
       accessor: 'contact.phone',
       sortable: false,
-      Cell: ({ row }) => (
-        <div>
-          <div>{row.original.contact.phone}</div>
-          <small className="text-muted">{row.original.contact.email}</small>
-        </div>
-      )
+      Cell: ({ row }) => {
+        const contact = row.original.contact || {};
+        return (
+          <div>
+            <div>{contact.phone || 'N/A'}</div>
+            <small className="text-muted">{contact.email || 'N/A'}</small>
+          </div>
+        );
+      }
+    },
+    {
+      Header: 'Policy',
+      accessor: 'policies',
+      sortable: false,
+      Cell: ({ row }) => {
+        const policies = row.original.policies || {};
+        return (
+          <div className="small">
+            <div className="mb-1">
+              <strong>Check-in:</strong> {policies.checkInTime || 'N/A'}
+            </div>
+            <div className="mb-1">
+              <strong>Check-out:</strong> {policies.checkOutTime || 'N/A'}
+            </div>
+            {policies.cancellationPolicy && (
+              <div className="text-muted text-truncate" style={{ maxWidth: '200px' }}>
+                <strong>Cancel:</strong> {policies.cancellationPolicy}
+              </div>
+            )}
+          </div>
+        );
+      }
     },
     {
       Header: 'Status',
@@ -181,7 +149,7 @@ const HotelListTable = () => {
           value === 'maintenance' ? 'bg-warning' :
           'bg-danger'
         }`}>
-          {value.charAt(0).toUpperCase() + value.slice(1)}
+          {value ? value.charAt(0).toUpperCase() + value.slice(1) : 'N/A'}
         </span>
       )
     },
@@ -207,14 +175,12 @@ const HotelListTable = () => {
         
         return (
           <div className="d-flex align-items-center">
-            <div 
-              style={{
-                width: '50px',
-                height: '50px',
-                overflow: 'hidden',
-                borderRadius: '4px'
-              }}
-            >
+            <div style={{
+              width: '50px',
+              height: '50px',
+              overflow: 'hidden',
+              borderRadius: '4px'
+            }}>
               <img 
                 src={value[0]} 
                 alt="Hotel thumbnail"

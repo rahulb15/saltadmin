@@ -3,8 +3,54 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useCreateRoomMutation, useUpdateRoomMutation } from '../../../../../services/roomAPI';
 import { useGetHotelsQuery } from '../../../../../services/hotelAPI';
 import { setSelectedRoom } from '../../../../../Redux/reducers/roomReducer';
-import * as bootstrap from 'bootstrap';
 
+
+
+const defaultFormData = {
+    hotelId: '',
+    roomNumber: '',
+    name: '',
+    roomName: '',
+    roomDescription: '',
+    type: '',
+    capacity: {
+        baseAdults: 1,
+        maxAdults: 2,
+        baseChildren: 0,
+        maxChildren: 0
+    },
+    pricing: {
+        basePrice: 0,
+        rackRate: 0,
+        currency: 'INR'
+    },
+    size: {
+        value: 0,
+        unit: 'sqft'
+    },
+    bedConfiguration: [{
+        type: 'Default',
+        count: 1
+    }],
+    policies: {
+        checkInTime: '14:00',
+        checkOutTime: '12:00',
+        cancellationPolicy: 'Standard cancellation policy'
+    },
+    amenities: [],
+    images: {
+        mainImage: '',
+        additionalImages: []
+    },
+    status: 'active'
+};
+
+
+const ROOM_TYPES = ['Standard', 'Deluxe', 'Suite', 'Executive', 'Family'];
+const UNIT_OPTIONS = [
+    { value: 'sqft', label: 'Square Feet' },
+    { value: 'sqm', label: 'Square Meters' }
+];
 
 const RoomForm = ({ isEdit = false, initialData = null, onClose }) => {
     const dispatch = useDispatch();
@@ -13,71 +59,28 @@ const RoomForm = ({ isEdit = false, initialData = null, onClose }) => {
     const [updateRoom] = useUpdateRoomMutation();
     const { data: hotelsData } = useGetHotelsQuery({ page: 1, limit: 100 });
 
-    const defaultFormData = {
-        hotelId: '',
-        roomNumber: '',
-        name: '',
-        roomName: '',
-        roomDescription: '',
-        type: '',
-        capacity: {
-            baseAdults: 1,
-            maxAdults: 2,
-            baseChildren: 0,
-            maxChildren: 0
-        },
-        pricing: {
-            basePrice: 0,
-            rackRate: 0,
-            currency: 'INR'
-        },
-        size: {
-            value: 0,
-            unit: 'sqft'
-        },
-        bedConfiguration: [{
-            type: 'Default',
-            count: 1
-        }],
-        policies: {
-            checkInTime: '14:00',
-            checkOutTime: '12:00',
-            cancellationPolicy: 'Standard cancellation policy'
-        },
-        amenities: [],
-        images: {
-            mainImage: '',
-            additionalImages: []
-        },
-        status: 'active'
-    };
-
-       // Image preview states
-       const [mainImagePreview, setMainImagePreview] = useState('');
-       const [additionalImagePreviews, setAdditionalImagePreviews] = useState([]);
-       const [imagesToDelete, setImagesToDelete] = useState([]);
-       
-       // Track existing images separately
-       const [existingImages, setExistingImages] = useState({
-           mainImage: '',
-           additionalImages: []
-       });
-
+    // Form state management
     const [formData, setFormData] = useState(defaultFormData);
+    const [mainImagePreview, setMainImagePreview] = useState('');
+    const [additionalImagePreviews, setAdditionalImagePreviews] = useState([]);
+    const [imagesToDelete, setImagesToDelete] = useState([]);
     const [images, setImages] = useState({
         mainImage: null,
         additionalImages: []
     });
+    const [existingImages, setExistingImages] = useState({
+        mainImage: '',
+        additionalImages: []
+    });
 
+    // Initialize form with edit data if available
     useEffect(() => {
-        if (isEdit && initialData) {
-            setFormData(initialData);
-        }
-    }, [isEdit, initialData]);
-
-      // Load existing images on edit
-      useEffect(() => {
         if (isEdit && selectedRoom) {
+            const cleanRoomData = {
+                ...defaultFormData,
+                ...JSON.parse(JSON.stringify(selectedRoom))
+            };
+            setFormData(cleanRoomData);
             setExistingImages({
                 mainImage: selectedRoom.images.mainImage,
                 additionalImages: selectedRoom.images.additionalImages || []
@@ -87,112 +90,16 @@ const RoomForm = ({ isEdit = false, initialData = null, onClose }) => {
         }
     }, [isEdit, selectedRoom]);
 
-
-   
-    // Effect to handle edit mode
+    // Cleanup on unmount
     useEffect(() => {
-        if (isEdit && selectedRoom) {
-            // Create a clean copy of the selected room data
-            const cleanRoomData = {
-                ...defaultFormData,
-                ...JSON.parse(JSON.stringify(selectedRoom))
-            };
-            setFormData(cleanRoomData);
-        } else {
-            setFormData(defaultFormData);
-        }
-    }, [isEdit, selectedRoom]);
-
-      // Cleanup when modal closes
-      useEffect(() => {
-        const offcanvasElement = document.getElementById(isEdit ? 'edit-room' : 'add-room');
-        if (offcanvasElement) {
-            offcanvasElement.addEventListener('hidden.bs.offcanvas', () => {
-                setFormData(defaultFormData);
-                setImages({ mainImage: null, additionalImages: [] });
-                if (isEdit) {
-                    // Dispatch a plain object action to clear selected room
-                    dispatch({
-                        type: 'rooms/setSelectedRoom',
-                        payload: null
-                    });
-                }
-            });
-        }
+        return () => {
+            if (isEdit) {
+                dispatch(setSelectedRoom(null));
+            }
+        };
     }, [isEdit, dispatch]);
 
-
-
-    const handleMainImageChange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            setImages(prev => ({
-                ...prev,
-                mainImage: file
-            }));
-            
-            // Create preview
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setMainImagePreview(reader.result);
-            };
-            reader.readAsDataURL(file);
-        }
-    };
-
-    const handleAdditionalImagesChange = (e) => {
-        const files = Array.from(e.target.files);
-        setImages(prev => ({
-            ...prev,
-            additionalImages: [...prev.additionalImages, ...files]
-        }));
-
-        // Create previews
-        files.forEach(file => {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setAdditionalImagePreviews(prev => [...prev, reader.result]);
-            };
-            reader.readAsDataURL(file);
-        });
-    };
-
-    const handleRemoveMainImage = () => {
-        if (isEdit && existingImages.mainImage) {
-            setImagesToDelete(prev => [...prev, existingImages.mainImage]);
-        }
-        setImages(prev => ({ ...prev, mainImage: null }));
-        setMainImagePreview('');
-    };
-
-    const handleRemoveAdditionalImage = (index) => {
-        if (isEdit && existingImages.additionalImages[index]) {
-            setImagesToDelete(prev => [...prev, existingImages.additionalImages[index]]);
-            const newExistingImages = [...existingImages.additionalImages];
-            newExistingImages.splice(index, 1);
-            setExistingImages(prev => ({
-                ...prev,
-                additionalImages: newExistingImages
-            }));
-        }
-        
-        setImages(prev => {
-            const newImages = [...prev.additionalImages];
-            newImages.splice(index, 1);
-            return {
-                ...prev,
-                additionalImages: newImages
-            };
-        });
-        
-        setAdditionalImagePreviews(prev => {
-            const newPreviews = [...prev];
-            newPreviews.splice(index, 1);
-            return newPreviews;
-        });
-    };
-
-
+    // Form Handlers
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         if (name.includes('.')) {
@@ -212,136 +119,115 @@ const RoomForm = ({ isEdit = false, initialData = null, onClose }) => {
         }
     };
 
-    const handleImageChange = (e) => {
-        const { name, files } = e.target;
-        if (name === 'mainImage') {
+    const handleImageChange = (e, type = 'main') => {
+        const files = Array.from(e.target.files);
+        if (type === 'main' && files[0]) {
+            setImages(prev => ({ ...prev, mainImage: files[0] }));
+            const reader = new FileReader();
+            reader.onloadend = () => setMainImagePreview(reader.result);
+            reader.readAsDataURL(files[0]);
+        } else if (type === 'additional') {
             setImages(prev => ({
                 ...prev,
-                mainImage: files[0]
+                additionalImages: [...prev.additionalImages, ...files]
             }));
-        } else {
-            setImages(prev => ({
-                ...prev,
-                additionalImages: Array.from(files)
-            }));
+            
+            files.forEach(file => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    setAdditionalImagePreviews(prev => [...prev, reader.result]);
+                };
+                reader.readAsDataURL(file);
+            });
         }
     };
 
-    const handleCloseModal = () => {
-        const offcanvasElement = document.getElementById(isEdit ? 'edit-room' : 'add-room');
-        if (offcanvasElement) {
-            const offcanvasInstance = bootstrap.Offcanvas.getInstance(offcanvasElement);
-            if (offcanvasInstance) {
-                offcanvasInstance.hide();
+    const handleRemoveImage = (index, type = 'main') => {
+        if (type === 'main') {
+            if (isEdit && existingImages.mainImage) {
+                setImagesToDelete(prev => [...prev, existingImages.mainImage]);
             }
+            setImages(prev => ({ ...prev, mainImage: null }));
+            setMainImagePreview('');
+        } else {
+            if (isEdit && existingImages.additionalImages[index]) {
+                setImagesToDelete(prev => [...prev, existingImages.additionalImages[index]]);
+                setExistingImages(prev => ({
+                    ...prev,
+                    additionalImages: prev.additionalImages.filter((_, i) => i !== index)
+                }));
+            }
+            setImages(prev => ({
+                ...prev,
+                additionalImages: prev.additionalImages.filter((_, i) => i !== index)
+            }));
+            setAdditionalImagePreviews(prev => prev.filter((_, i) => i !== index));
         }
     };
-
-    // const handleSubmit = async (e) => {
-    //     e.preventDefault();
-    //     try {
-    //         const roomFormData = new FormData();
-
-    //         // Append basic form data
-    //         Object.keys(formData).forEach(key => {
-    //             if (typeof formData[key] === 'object') {
-    //                 roomFormData.append(key, JSON.stringify(formData[key]));
-    //             } else {
-    //                 roomFormData.append(key, formData[key]);
-    //             }
-    //         });
-
-    //         // Append images
-    //         if (images.mainImage) {
-    //             roomFormData.append('mainImage', images.mainImage);
-    //         }
-    //         images.additionalImages.forEach(image => {
-    //             roomFormData.append('additionalImages', image);
-    //         });
-
-    //         // Append images to delete if in edit mode
-    //         if (isEdit && imagesToDelete.length > 0) {
-    //             roomFormData.append('imagesToDelete', JSON.stringify(imagesToDelete));
-    //         }
-
-    //         if (isEdit && selectedRoom) {
-    //             await updateRoom({ id: selectedRoom._id, data: roomFormData }).unwrap();
-    //         } else {
-    //             await createRoom(roomFormData).unwrap();
-    //         }
-
-    //         handleCloseModal();
-    //         alert(isEdit ? 'Room updated successfully' : 'Room created successfully');
-    //     } catch (error) {
-    //         console.error('Error saving room:', error);
-    //         alert(isEdit ? 'Failed to update room' : 'Failed to create room');
-    //     }
-    // };
-
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const roomFormData = new FormData();
-    
-            // Append basic form data
-            Object.keys(formData).forEach(key => {
-                if (typeof formData[key] === 'object') {
-                    roomFormData.append(key, JSON.stringify(formData[key]));
-                } else {
-                    roomFormData.append(key, formData[key]);
-                }
+            const formDataToSend = new FormData();
+
+            // Append form data
+            Object.entries(formData).forEach(([key, value]) => {
+                formDataToSend.append(key, typeof value === 'object' ? JSON.stringify(value) : value);
             });
-    
-            // Handle main image
+
+            // Append images
             if (images.mainImage) {
-                roomFormData.append('mainImage', images.mainImage);
+                formDataToSend.append('mainImage', images.mainImage);
             }
-    
-            // Handle additional images
-            if (images.additionalImages.length > 0) {
-                images.additionalImages.forEach(image => {
-                    roomFormData.append('additionalImages', image);
-                });
-            }
-    
-            // Handle images to delete in edit mode
+            images.additionalImages.forEach(image => {
+                formDataToSend.append('additionalImages', image);
+            });
+
+            // Handle image deletion for edit mode
             if (isEdit && imagesToDelete.length > 0) {
-                roomFormData.append('imagesToDelete', JSON.stringify(imagesToDelete));
+                formDataToSend.append('imagesToDelete', JSON.stringify(imagesToDelete));
             }
-    
-            if (isEdit && selectedRoom) {
-                const response = await updateRoom({
-                    id: selectedRoom._id,
-                    data: roomFormData
-                }).unwrap();
-                if (response.status === 'SUCCESS') {
-                    handleCloseModal();
-                    alert('Room updated successfully');
+
+            const response = isEdit 
+                ? await updateRoom({ id: selectedRoom._id, data: formDataToSend }).unwrap()
+                : await createRoom(formDataToSend).unwrap();
+
+            if (response.status === 'SUCCESS') {
+                const modalElement = document.getElementById(isEdit ? 'edit-room' : 'add-room');
+                const bsOffcanvas = window.bootstrap.Offcanvas.getInstance(modalElement);
+                if (bsOffcanvas) {
+                    bsOffcanvas.hide();
                 }
-            } else {
-                const response = await createRoom(roomFormData).unwrap();
-                if (response.status === 'SUCCESS') {
-                    handleCloseModal();
-                    alert('Room created successfully');
-                }
+                alert(`Room ${isEdit ? 'updated' : 'created'} successfully`);
             }
         } catch (error) {
             console.error('Error saving room:', error);
-            alert(isEdit ? 'Failed to update room' : 'Failed to create room');
+            alert(`Failed to ${isEdit ? 'update' : 'create'} room`);
         }
     };
-    return (
-        <div className="offcanvas offcanvas-end" tabIndex="-1" id={isEdit ? "edit-room" : "add-room"}>
-            <div className="offcanvas-header">
-                <h5 className="offcanvas-title">{isEdit ? 'Edit Room' : 'Add Room'}</h5>
-                <button type="button" className="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
-            </div>
-            <div className="offcanvas-body">
-                <form onSubmit={handleSubmit}>
 
-                      {/* Images Section */}
-                      <div className="card mb-4">
+    return (
+        <div 
+    className="offcanvas offcanvas-end" 
+    tabIndex="-1" 
+    id={isEdit ? "edit-room" : "add-room"}
+    style={{ maxWidth: '650px' }} // Optional: if you want a wider form
+>
+    <div className="offcanvas-header">
+        <h5 className="offcanvas-title">{isEdit ? 'Edit Room' : 'Add Room'}</h5>
+        <button type="button" className="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div 
+        className="offcanvas-body" 
+        style={{
+            height: 'calc(100vh - 65px)', // Subtract header height
+            overflowY: 'auto',
+            padding: '1rem'
+        }}
+    >
+        <form onSubmit={handleSubmit}>
+                    {/* Image Section */}
+                    <div className="card mb-4">
                         <div className="card-header">
                             <h6 className="mb-0">Room Images</h6>
                         </div>
@@ -361,17 +247,15 @@ const RoomForm = ({ isEdit = false, initialData = null, onClose }) => {
                                             <button 
                                                 type="button"
                                                 className="btn btn-sm btn-danger position-absolute top-0 end-0"
-                                                onClick={handleRemoveMainImage}
-                                            >
-                                                ×
-                                            </button>
+                                                onClick={() => handleRemoveImage(0, 'main')}
+                                            >×</button>
                                         </div>
                                     )}
                                     <div className="flex-grow-1">
                                         <input 
                                             type="file"
                                             className="form-control"
-                                            onChange={handleMainImageChange}
+                                            onChange={(e) => handleImageChange(e, 'main')}
                                             accept="image/*"
                                         />
                                     </div>
@@ -384,7 +268,7 @@ const RoomForm = ({ isEdit = false, initialData = null, onClose }) => {
                                 <input 
                                     type="file"
                                     className="form-control mb-3"
-                                    onChange={handleAdditionalImagesChange}
+                                    onChange={(e) => handleImageChange(e, 'additional')}
                                     accept="image/*"
                                     multiple
                                 />
@@ -401,10 +285,8 @@ const RoomForm = ({ isEdit = false, initialData = null, onClose }) => {
                                                 <button 
                                                     type="button"
                                                     className="btn btn-sm btn-danger position-absolute top-0 end-0"
-                                                    onClick={() => handleRemoveAdditionalImage(index)}
-                                                >
-                                                    ×
-                                                </button>
+                                                    onClick={() => handleRemoveImage(index, 'additional')}
+                                                >×</button>
                                             </div>
                                         ))}
                                     </div>
